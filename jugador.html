@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CD Zafranar · Cuestionario diario</title>
+<style>
+  :root{
+    --naranja:#EF6C1F; --naranja-d:#C6540F; --negro:#141414; --negro2:#1E1E1E;
+    --crema:#F4EFE8; --gris:#8A8A8A; --ok:#3FA34D; --warn:#E0B400; --bad:#D64545;
+    --r:14px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--negro);color:var(--crema);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+    padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);}
+  header{padding:22px 20px 16px;text-align:center;border-bottom:3px solid var(--naranja);}
+  header h1{margin:0;font-size:1.5rem;letter-spacing:.5px;}
+  header p{margin:4px 0 0;color:var(--gris);font-size:.85rem;}
+  .wrap{max-width:480px;margin:0 auto;padding:16px 16px 60px;}
+  .tabs{display:flex;gap:8px;margin:16px 0;}
+  .tab{flex:1;padding:12px 0;text-align:center;border-radius:10px;background:var(--negro2);
+    border:2px solid transparent;font-weight:600;cursor:pointer;}
+  .tab.on{border-color:var(--naranja);color:var(--naranja);}
+  .card{background:var(--negro2);border-radius:var(--r);padding:18px;margin-bottom:16px;}
+  label{display:block;font-size:.9rem;color:var(--gris);margin-bottom:8px;}
+  select,input[type=number],input[type=text]{
+    width:100%;padding:12px;border-radius:10px;border:1px solid #333;background:#111;
+    color:var(--crema);font-size:1rem;}
+  .scale{display:flex;gap:6px;flex-wrap:wrap;}
+  .scale button{flex:1 1 auto;min-width:36px;padding:10px 0;border-radius:8px;border:1px solid #333;
+    background:#111;color:var(--crema);font-weight:600;cursor:pointer;}
+  .scale button.on{background:var(--naranja);border-color:var(--naranja);color:#141414;}
+  .field{margin-bottom:20px;}
+  .hint{font-size:.75rem;color:var(--gris);margin-top:6px;}
+  .btn{display:block;width:100%;padding:15px;border-radius:12px;border:none;
+    background:var(--naranja);color:#141414;font-weight:700;font-size:1.05rem;margin-top:8px;cursor:pointer;}
+  .btn:active{background:var(--naranja-d);}
+  .btn-sec{background:transparent;border:1px solid var(--naranja);color:var(--naranja);}
+  .ok-box{background:#152417;border:1px solid var(--ok);color:var(--ok);padding:16px;border-radius:12px;text-align:center;font-weight:600;}
+  .tareas{display:flex;flex-direction:column;gap:10px;}
+  .tarea-row{background:#111;border-radius:10px;padding:10px;display:flex;gap:8px;align-items:center;}
+  .tarea-row input[type=text]{flex:2;}
+  .tarea-row input[type=number]{flex:1;}
+  .tarea-row select{flex:1;}
+  .rm{background:none;border:none;color:var(--bad);font-size:1.3rem;cursor:pointer;padding:0 6px;}
+  .add-tarea{background:none;border:1px dashed var(--gris);color:var(--gris);padding:10px;border-radius:10px;
+    width:100%;text-align:center;cursor:pointer;margin-top:4px;}
+  .mapa-tog{display:flex;gap:8px;margin-bottom:12px;}
+  .mapa-tog button{flex:1;padding:8px;border-radius:8px;border:1px solid #333;background:#111;color:var(--crema);}
+  .mapa-tog button.on{border-color:var(--naranja);color:var(--naranja);}
+  .mapa-svg{width:100%;max-width:220px;display:block;margin:0 auto;touch-action:manipulation;}
+  .mapa-svg .zona{cursor:pointer;}
+  .mapa-svg .zp{transition:fill .15s;}
+  .mapa-svg .zona:active .zp{fill:#8a3a28;}
+  .mapa-svg .zona.marcada .zp{fill:var(--naranja);}
+  .lista-dolor{margin-top:12px;display:flex;flex-direction:column;gap:8px;}
+  .dolor-chip{background:#111;border-left:3px solid var(--naranja);border-radius:8px;padding:10px 12px;
+    display:flex;justify-content:space-between;align-items:center;font-size:.9rem;}
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:flex-end;z-index:10;}
+  .overlay.on{display:flex;}
+  .sheet{background:var(--negro2);width:100%;border-radius:18px 18px 0 0;padding:20px;
+    padding-bottom:calc(20px + env(safe-area-inset-bottom,0px));}
+  .sheet h3{margin:0 0 4px;}
+  .sheet .desc{color:var(--gris);font-size:.85rem;margin-bottom:16px;}
+  .config{padding:16px;text-align:center;}
+  .config input{margin:10px 0;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>CD Zafranar</h1>
+  <p id="fechaHoy"></p>
+</header>
+
+<div class="wrap">
+
+  <div class="field">
+    <label for="selJugador">Jugador</label>
+    <select id="selJugador"><option value="">Selecciona tu nombre…</option></select>
+  </div>
+
+  <div class="tabs">
+    <div class="tab on" data-tab="wellness">Wellness</div>
+    <div class="tab" data-tab="rpe">RPE sesión</div>
+    <div class="tab" data-tab="dolor">Dolor</div>
+  </div>
+
+  <!-- WELLNESS -->
+  <section id="panel-wellness">
+    <div class="card">
+      <div class="field">
+        <label>Calidad del sueño</label>
+        <div class="scale" data-name="sueno_calidad" data-min="1" data-max="7"></div>
+        <div class="hint">1 = muy mala · 7 = muy buena</div>
+      </div>
+      <div class="field">
+        <label for="suenoHoras">Horas de sueño</label>
+        <input type="number" id="suenoHoras" min="0" max="14" step="0.5" placeholder="Ej: 8">
+      </div>
+      <div class="field">
+        <label>Nivel de fatiga</label>
+        <div class="scale" data-name="fatiga" data-min="1" data-max="7"></div>
+        <div class="hint">1 = nada cansado · 7 = agotado</div>
+      </div>
+      <div class="field">
+        <label>Estrés</label>
+        <div class="scale" data-name="estres" data-min="1" data-max="7"></div>
+        <div class="hint">1 = muy relajado · 7 = muy estresado</div>
+      </div>
+      <div class="field">
+        <label>Dolor muscular general (agujetas)</label>
+        <div class="scale" data-name="dolor_muscular" data-min="1" data-max="7"></div>
+        <div class="hint">1 = nada · 7 = mucho</div>
+      </div>
+      <div class="field">
+        <label>Estado de ánimo</label>
+        <div class="scale" data-name="animo" data-min="1" data-max="7"></div>
+        <div class="hint">1 = muy mal · 7 = genial</div>
+      </div>
+      <div class="field">
+        <label>Ganas de entrenar hoy</label>
+        <div class="scale" data-name="ganas_entrenar" data-min="1" data-max="7"></div>
+        <div class="hint">1 = ninguna · 7 = muchas</div>
+      </div>
+      <button class="btn" id="btnWellness">Enviar wellness</button>
+    </div>
+  </section>
+
+  <!-- RPE -->
+  <section id="panel-rpe" style="display:none">
+    <div class="card">
+      <div class="field">
+        <label>¿Esto es de un entrenamiento o de un partido?</label>
+        <div class="scale" id="contextoBtns">
+          <button data-v="entreno" class="on">Entreno</button>
+          <button data-v="partido">Partido</button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="microciclo">Microciclo (ej. MD-3, MD-1)</label>
+        <input type="text" id="microciclo" placeholder="MD-3">
+      </div>
+      <div class="field">
+        <label for="duracionSesion">Duración total de la sesión (min)</label>
+        <input type="number" id="duracionSesion" value="90" min="1">
+      </div>
+      <div class="field">
+        <label>RPE de la sesión completa</label>
+        <div class="scale" data-name="rpe_sesion" data-min="0" data-max="10"></div>
+        <div class="hint">0 = reposo total · 10 = esfuerzo máximo</div>
+      </div>
+      <button class="btn" id="btnRpeSesion">Enviar RPE de sesión</button>
+    </div>
+
+    <div class="card">
+      <label>RPE por tarea/ejercicio (opcional, ayuda a ajustar la carga)</label>
+      <div class="tareas" id="tareas"></div>
+      <button class="add-tarea" id="addTarea">+ añadir tarea</button>
+      <button class="btn btn-sec" id="btnRpeTareas">Enviar RPE por tareas</button>
+    </div>
+  </section>
+
+  <!-- DOLOR -->
+  <section id="panel-dolor" style="display:none">
+    <div class="card">
+      <div class="mapa-tog">
+        <button class="on" data-vista="frente">Frente</button>
+        <button data-vista="espalda">Espalda</button>
+      </div>
+      <div id="mapaHost"></div>
+      <div class="hint" style="text-align:center;margin-top:8px;">Toca una zona con molestia. Puedes marcar varias.</div>
+      <div class="lista-dolor" id="listaDolor"></div>
+      <button class="btn" id="btnDolor" style="display:none;">Enviar dolor</button>
+      <div class="hint" style="text-align:center;margin-top:10px;">Si no tienes ninguna molestia, no hace falta que marques nada.</div>
+    </div>
+  </section>
+
+  <div id="mensajeOk" style="display:none" class="ok-box">✓ Enviado. ¡Gracias!</div>
+
+</div>
+
+<!-- Modal de zona -->
+<div class="overlay" id="overlay">
+  <div class="sheet">
+    <h3 id="zonaNombre"></h3>
+    <div class="desc" id="zonaDesc"></div>
+    <div class="field">
+      <label>Intensidad</label>
+      <div class="scale" data-name="zonaIntensidad" data-min="0" data-max="10"></div>
+    </div>
+    <div class="field">
+      <label>¿Qué tipo de molestia es?</label>
+      <select id="zonaTipo">
+        <option>Agujetas</option>
+        <option>Sobrecarga muscular</option>
+        <option>Pinchazo / punzada muscular</option>
+        <option>Molestia articular</option>
+        <option>Golpe / contusión</option>
+        <option>Otro</option>
+      </select>
+    </div>
+    <button class="btn" id="guardarZona">Guardar zona</button>
+    <button class="btn btn-sec" id="cancelarZona">Cancelar</button>
+  </div>
+</div>
+
+<script>
+/* ====== CONFIG ====== */
+const CONFIG = { API_URL: "https://script.google.com/macros/s/AKfycbypxejWxZhsEjl8fpwvnJmdH2HbgBiuqQuxGZz3A1rnRM9Rgpc_2dQqlfrqbwZNzDa9eQ/exec" };
+</script>
+<script>
+/* ===== MAPA CORPORAL ===== */
+// Zonas dibujadas solo para la mitad izquierda del dibujo (x<100); la derecha se refleja.
+// En la vista FRENTE la mitad izquierda del dibujo es el lado DERECHO del jugador.
+// En la vista ESPALDA la mitad izquierda del dibujo es el lado IZQUIERDO del jugador.
+const MAPA = {
+  frente: {
+    ladoIzq: 'Derecha',
+    zonas: [
+      { id: 'cabeza', n: 'Cabeza y cara', t: 'Otra', c: 1, d: 'Cabeza, cara y mandíbula (golpes, mareos…).', p: 'M100 8 C111 8 118 16 118 27 C118 39 111 47 100 47 C89 47 82 39 82 27 C82 16 89 8 100 8 Z', f: ['M92 22 C96 20 104 20 108 22'] },
+      { id: 'cuello', n: 'Cuello', t: 'Mixta', c: 1, d: 'Musculatura del cuello y vértebras cervicales.', p: 'M90 47 L110 47 L113 62 L100 66 L87 62 Z', f: ['M94 50 L91 62', 'M106 50 L109 62'] },
+      { id: 'hombro', n: 'Hombro', t: 'Mixta', d: 'Deltoides y articulación del hombro.', p: 'M87 62 C72 62 58 64 51 78 C47 90 50 100 54 108 L67 101 C65 89 71 77 87 69 Z', f: ['M72 68 C60 74 56 88 58 102', 'M78 70 C68 76 63 88 64 100'] },
+      { id: 'pecho', n: 'Pecho', t: 'Muscular', d: 'Pectoral mayor.', p: 'M87 69 C71 77 65 89 67 101 C73 110 88 114 100 112 L100 68 Z', f: ['M99 78 C90 80 79 82 70 88', 'M99 91 C90 93 80 95 68 99', 'M99 103 C91 106 82 107 72 105'] },
+      { id: 'biceps', n: 'Brazo (bíceps)', t: 'Muscular', d: 'Bíceps y musculatura de la parte delantera del brazo.', p: 'M54 108 L67 101 C69 113 69 126 66 140 L51 140 C49 128 50 117 54 108 Z', f: ['M58 112 C57 122 57 132 58 138', 'M63 108 C63 120 63 130 62 138'] },
+      { id: 'codo', n: 'Codo', t: 'Articular', d: 'Articulación del codo y sus tendones.', p: 'M51 140 L66 140 L65 152 L50 152 Z', f: [] },
+      { id: 'antebrazo', n: 'Antebrazo', t: 'Muscular', d: 'Flexores y extensores del antebrazo.', p: 'M50 152 L65 152 C64 170 62 186 60 200 L47 200 C47 186 48 168 50 152 Z', f: ['M54 156 C53 170 52 184 52 198', 'M60 156 C59 170 57 184 56 198'] },
+      { id: 'mano', n: 'Muñeca y mano', t: 'Mixta', d: 'Muñeca, mano y dedos.', p: 'M47 200 L60 200 L58 226 C54 233 47 229 45 222 Z', f: [] },
+      { id: 'abdomen', n: 'Abdomen', t: 'Muscular', c: 1, d: 'Recto abdominal (la tableta).', p: 'M82 114 L118 114 L118 176 C110 186 90 186 82 176 Z', f: ['M100 114 L100 184', 'M83 132 L117 132', 'M83 150 L117 150', 'M84 167 L116 167'] },
+      { id: 'oblicuo', n: 'Costado (oblicuos)', t: 'Muscular', d: 'Oblicuos, en el lateral del tronco.', p: 'M67 104 C68 112 79 116 82 114 L82 176 C76 180 71 178 69 174 C65 152 64 124 67 104 Z', f: ['M72 118 L80 130', 'M70 136 L80 148', 'M69 154 L79 164'] },
+      { id: 'cadera', n: 'Cadera', t: 'Mixta', d: 'Articulación de la cadera y flexores (psoas, recto femoral alto).', p: 'M69 174 C71 178 76 180 82 176 L86 186 L84 206 L64 206 C62 194 64 182 69 174 Z', f: ['M70 186 C74 192 78 198 82 204'] },
+      { id: 'ingle', n: 'Ingle (aductores)', t: 'Muscular', d: 'Aductores: cara interna del muslo e ingle.', p: 'M86 186 L100 186 L100 204 C99 232 97 262 94 286 L82 286 C84 260 84 232 84 206 Z', f: ['M92 200 C92 232 90 262 88 284', 'M97 210 C96 240 95 262 92 282'] },
+      { id: 'cuadriceps', n: 'Cuádriceps', t: 'Muscular', d: 'Recto femoral, vasto lateral y vasto medial (muslo delantero).', p: 'M64 206 L84 206 C84 232 84 260 82 286 L68 286 C62 262 62 232 64 206 Z', f: ['M70 212 C68 240 70 264 72 284', 'M76 210 C76 238 76 262 76 284'] },
+      { id: 'rodilla', n: 'Rodilla', t: 'Articular', d: 'Rodilla: ligamentos, meniscos, rótula y tendón rotuliano.', p: 'M68 286 L94 286 L92 314 L70 314 Z', f: [] , o: '<ellipse cx="81" cy="298" rx="7" ry="8" fill="none" stroke="#000" stroke-opacity=".35" stroke-width=".8"/>' },
+      { id: 'tibial', n: 'Espinilla (tibial)', t: 'Muscular', d: 'Tibial anterior y la espinilla.', p: 'M70 314 L92 314 C92 340 90 366 88 390 L74 390 C72 366 70 340 70 314 Z', f: ['M76 318 C75 342 75 366 76 388', 'M84 318 C84 342 83 366 82 388'] },
+      { id: 'tobillo', n: 'Tobillo', t: 'Articular', d: 'Articulación del tobillo y sus ligamentos.', p: 'M74 390 L88 390 L88 406 L74 406 Z', f: [] },
+      { id: 'pie', n: 'Pie', t: 'Mixta', d: 'Empeine, dedos y planta del pie.', p: 'M70 406 L90 406 L93 430 L62 430 C62 420 65 412 70 406 Z', f: ['M70 414 L72 428', 'M78 412 L79 428', 'M85 412 L86 428'] }
+    ]
+  },
+  espalda: {
+    ladoIzq: 'Izquierda',
+    zonas: [
+      { id: 'cabeza', n: 'Cabeza (nuca)', t: 'Otra', c: 1, d: 'Parte trasera de la cabeza.', p: 'M100 8 C111 8 118 16 118 27 C118 39 111 47 100 47 C89 47 82 39 82 27 C82 16 89 8 100 8 Z', f: [] },
+      { id: 'cervical', n: 'Cervicales', t: 'Mixta', c: 1, d: 'Vértebras del cuello y musculatura cervical.', p: 'M90 47 L110 47 L113 62 L100 66 L87 62 Z', f: ['M100 48 L100 64'] },
+      { id: 'trapecio', n: 'Trapecio', t: 'Muscular', d: 'Trapecio: del cuello al hombro y a la espalda alta.', p: 'M87 62 L100 66 L100 132 L84 102 L62 78 C70 70 79 64 87 62 Z', f: ['M98 70 C88 76 76 78 66 78', 'M99 90 C90 92 82 92 74 88', 'M99 112 C93 108 88 104 84 100'] },
+      { id: 'hombro', n: 'Hombro (posterior)', t: 'Mixta', d: 'Deltoides posterior y articulación del hombro.', p: 'M62 78 C52 80 47 92 54 108 L67 101 C68 92 74 86 84 102 Z', f: ['M62 84 C56 92 56 100 58 104'] },
+      { id: 'dorsal', n: 'Espalda (dorsal)', t: 'Muscular', d: 'Dorsal ancho, romboides y zona media de la espalda.', p: 'M67 101 L84 102 L100 132 L100 158 L84 158 L80 174 C71 152 65 126 67 101 Z', f: ['M76 112 C84 124 92 136 98 150', 'M70 118 C76 134 82 148 84 160'] },
+      { id: 'triceps', n: 'Brazo (tríceps)', t: 'Muscular', d: 'Tríceps, parte trasera del brazo.', p: 'M54 108 L67 101 C69 113 69 126 66 140 L51 140 C49 128 50 117 54 108 Z', f: ['M58 112 C57 122 57 132 58 138', 'M63 108 C63 120 63 130 62 138'] },
+      { id: 'codo', n: 'Codo', t: 'Articular', d: 'Articulación del codo y sus tendones.', p: 'M51 140 L66 140 L65 152 L50 152 Z', f: [] },
+      { id: 'antebrazo', n: 'Antebrazo', t: 'Muscular', d: 'Flexores y extensores del antebrazo.', p: 'M50 152 L65 152 C64 170 62 186 60 200 L47 200 C47 186 48 168 50 152 Z', f: ['M54 156 C53 170 52 184 52 198', 'M60 156 C59 170 57 184 56 198'] },
+      { id: 'mano', n: 'Muñeca y mano', t: 'Mixta', d: 'Muñeca, mano y dedos.', p: 'M47 200 L60 200 L58 226 C54 233 47 229 45 222 Z', f: [] },
+      { id: 'lumbar', n: 'Zona lumbar', t: 'Mixta', c: 1, d: 'Erectores espinales y vértebras lumbares.', p: 'M84 158 L116 158 L116 194 C108 199 92 199 84 194 Z', f: ['M100 158 L100 196', 'M90 162 L90 192', 'M110 162 L110 192'] },
+      { id: 'gluteo', n: 'Glúteo', t: 'Muscular', d: 'Glúteo mayor y medio.', p: 'M64 192 L84 194 C92 199 100 199 100 194 L100 228 C88 235 72 233 64 220 Z', f: ['M72 200 C76 214 84 224 96 228', 'M68 208 C74 220 82 228 92 232'] },
+      { id: 'isquios', n: 'Isquiotibiales', t: 'Muscular', d: 'Bíceps femoral, semitendinoso y semimembranoso (muslo trasero).', p: 'M64 220 C72 233 88 235 100 228 C98 254 96 272 94 288 L68 288 C62 264 62 240 64 220 Z', f: ['M72 236 C71 256 72 274 74 286', 'M80 238 C79 256 80 274 81 286', 'M88 236 C88 256 88 274 88 286'] },
+      { id: 'rodilla', n: 'Rodilla (parte trasera)', t: 'Articular', d: 'Hueco de detrás de la rodilla y tendones de los isquios.', p: 'M68 288 L94 288 L92 314 L70 314 Z', f: [] },
+      { id: 'gemelo', n: 'Gemelo', t: 'Muscular', d: 'Gemelos y sóleo (pantorrilla).', p: 'M70 314 L92 314 C94 338 90 362 88 378 L74 378 C69 362 68 338 70 314 Z', f: ['M76 320 C73 340 74 360 76 376', 'M85 320 C88 340 86 360 84 376'] },
+      { id: 'aquiles', n: 'Tendón de Aquiles', t: 'Mixta', d: 'Tendón de Aquiles y zona baja del tobillo.', p: 'M74 378 L88 378 L88 406 L74 406 Z', f: ['M81 380 L81 404'] },
+      { id: 'pie', n: 'Talón y planta', t: 'Mixta', d: 'Talón y planta del pie.', p: 'M70 406 L90 406 L93 430 L62 430 C62 420 65 412 70 406 Z', f: [] }
+    ]
+  }
+};
+
+function mapaSVG(vista) {
+  const V = MAPA[vista];
+  let s = '<svg viewBox="0 0 200 440" xmlns="http://www.w3.org/2000/svg" class="mapa-svg" role="img" aria-label="Mapa corporal ' + vista + '">';
+  // relleno de hueco entre piernas y pelvis (no clicable)
+  s += '<path d="M84 176 L116 176 L116 206 L100 206 L84 206 Z" fill="#3b1a12" stroke="#000" stroke-width="1"/>';
+  V.zonas.forEach(z => {
+    const lados = z.c ? [['', '']] : [[V.ladoIzq, ''], [V.ladoIzq === 'Derecha' ? 'Izquierda' : 'Derecha', 'translate(200 0) scale(-1 1)']];
+    lados.forEach(l => {
+      s += '<g class="zona" data-id="' + z.id + '" data-lado="' + l[0] + '"' + (l[1] ? ' transform="' + l[1] + '"' : '') + '>';
+      s += '<path class="zp" d="' + z.p + '" fill="#6b2d20" stroke="#000" stroke-width="1" stroke-linejoin="round"/>';
+      z.f.forEach(f => { s += '<path d="' + f + '" fill="none" stroke="#000" stroke-opacity=".28" stroke-width=".9" stroke-linecap="round" pointer-events="none"/>'; });
+      if (z.o) s += z.o;
+      s += '</g>';
+    });
+  });
+  return s + '</svg>';
+}
+if (typeof module !== 'undefined') module.exports = { MAPA, mapaSVG };
+
+</script>
+<script>
+/* ===== estado ===== */
+const estado = { scales: {}, tareas: [], dolores: [], vista: 'frente', zonaActiva: null };
+
+/* ===== fecha y jugador ===== */
+document.getElementById('fechaHoy').textContent = new Date().toLocaleDateString('es-ES', { weekday:'long', day:'numeric', month:'long' });
+
+async function cargarJugadores(){
+  const sel = document.getElementById('selJugador');
+  try{
+    const r = await fetch(CONFIG.API_URL + '?action=jugadores');
+    const data = await r.json();
+    data.forEach(j => {
+      const o = document.createElement('option');
+      o.value = j.nombre; o.textContent = j.nombre;
+      sel.appendChild(o);
+    });
+  }catch(err){
+    sel.insertAdjacentHTML('beforeend', '<option disabled>No se pudo cargar la lista — revisa la conexión</option>');
+  }
+  const guardado = localStorage.getItem('zaf_jugador');
+  if (guardado) sel.value = guardado;
+}
+document.getElementById('selJugador').addEventListener('change', e => {
+  localStorage.setItem('zaf_jugador', e.target.value);
+});
+cargarJugadores();
+
+/* ===== tabs ===== */
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('on'));
+  t.classList.add('on');
+  ['wellness','rpe','dolor'].forEach(k => document.getElementById('panel-'+k).style.display = (k===t.dataset.tab ? 'block':'none'));
+}));
+
+/* ===== escalas genéricas ===== */
+function pintarEscala(el, min, max, name){
+  el.innerHTML = '';
+  for(let i=min;i<=max;i++){
+    const b = document.createElement('button');
+    b.textContent = i; b.dataset.v = i;
+    b.addEventListener('click', () => {
+      el.querySelectorAll('button').forEach(x=>x.classList.remove('on'));
+      b.classList.add('on');
+      estado.scales[name] = i;
+    });
+    el.appendChild(b);
+  }
+}
+document.querySelectorAll('.scale[data-name]').forEach(el => {
+  pintarEscala(el, Number(el.dataset.min), Number(el.dataset.max), el.dataset.name);
+});
+
+/* ===== contexto entreno/partido ===== */
+let contexto = 'entreno';
+document.querySelectorAll('#contextoBtns button').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('#contextoBtns button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on'); contexto = b.dataset.v;
+}));
+
+/* ===== envío helper ===== */
+function jugadorActual(){
+  const v = document.getElementById('selJugador').value;
+  if(!v) alert('Selecciona primero tu nombre arriba.');
+  return v;
+}
+async function enviar(payload){
+  await fetch(CONFIG.API_URL, { method:'POST', body: JSON.stringify(payload) });
+  const ok = document.getElementById('mensajeOk');
+  ok.style.display='block'; setTimeout(()=>ok.style.display='none', 2500);
+}
+
+/* ===== WELLNESS submit ===== */
+document.getElementById('btnWellness').addEventListener('click', async () => {
+  const jug = jugadorActual(); if(!jug) return;
+  const req = ['sueno_calidad','fatiga','estres','dolor_muscular','animo','ganas_entrenar'];
+  if (req.some(k => estado.scales[k] === undefined) || !document.getElementById('suenoHoras').value){
+    alert('Rellena todos los campos antes de enviar.'); return;
+  }
+  await enviar({
+    tipo:'wellness', jugador: jug,
+    sueno_calidad: estado.scales.sueno_calidad,
+    sueno_horas: document.getElementById('suenoHoras').value,
+    fatiga: estado.scales.fatiga, estres: estado.scales.estres,
+    dolor_muscular: estado.scales.dolor_muscular, animo: estado.scales.animo,
+    ganas_entrenar: estado.scales.ganas_entrenar
+  });
+});
+
+/* ===== RPE sesión submit ===== */
+document.getElementById('btnRpeSesion').addEventListener('click', async () => {
+  const jug = jugadorActual(); if(!jug) return;
+  if(estado.scales.rpe_sesion === undefined){ alert('Marca el RPE de la sesión.'); return; }
+  await enviar({
+    tipo:'rpe_sesion', jugador: jug, contexto,
+    microciclo: document.getElementById('microciclo').value,
+    duracion_min: document.getElementById('duracionSesion').value,
+    rpe: estado.scales.rpe_sesion
+  });
+});
+
+/* ===== RPE por tarea ===== */
+function filaTarea(){
+  const row = document.createElement('div'); row.className='tarea-row';
+  row.innerHTML = `
+    <input type="text" placeholder="Nombre de la tarea" class="t-nombre">
+    <input type="number" placeholder="min" class="t-dur" min="1">
+    <select class="t-rpe">${Array.from({length:11},(_,i)=>`<option value="${i}">${i}</option>`).join('')}</select>
+    <button class="rm">✕</button>`;
+  row.querySelector('.rm').addEventListener('click', () => row.remove());
+  document.getElementById('tareas').appendChild(row);
+}
+document.getElementById('addTarea').addEventListener('click', filaTarea);
+filaTarea();
+
+document.getElementById('btnRpeTareas').addEventListener('click', async () => {
+  const jug = jugadorActual(); if(!jug) return;
+  const filas = [...document.querySelectorAll('.tarea-row')].map(r => ({
+    nombre: r.querySelector('.t-nombre').value,
+    duracion_min: r.querySelector('.t-dur').value,
+    rpe: r.querySelector('.t-rpe').value
+  })).filter(t => t.nombre && t.duracion_min);
+  if(!filas.length){ alert('Añade al menos una tarea con nombre y duración.'); return; }
+  await enviar({ tipo:'rpe_tarea', jugador: jug, tareas: filas });
+});
+
+/* ===== MAPA DE DOLOR ===== */
+function pintarMapa(){
+  document.getElementById('mapaHost').innerHTML = mapaSVG(estado.vista);
+  document.querySelectorAll('.mapa-svg .zona').forEach(z => {
+    z.addEventListener('click', () => abrirZona(z.dataset.id, z.dataset.lado));
+    const yaMarcada = estado.dolores.find(d => d.zonaId===z.dataset.id && d.lado===z.dataset.lado);
+    if(yaMarcada) z.classList.add('marcada');
+  });
+}
+document.querySelectorAll('.mapa-tog button').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.mapa-tog button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on'); estado.vista = b.dataset.vista; pintarMapa();
+}));
+pintarMapa();
+
+function abrirZona(id, lado){
+  const zonaDef = MAPA[estado.vista].zonas.find(z => z.id===id);
+  estado.zonaActiva = { id, lado, nombre: zonaDef.n, desc: zonaDef.d };
+  document.getElementById('zonaNombre').textContent = zonaDef.n + (lado ? ' (' + lado + ')' : '');
+  document.getElementById('zonaDesc').textContent = zonaDef.d;
+  pintarEscala(document.querySelector('.scale[data-name=zonaIntensidad]'), 0, 10, 'zonaIntensidad');
+  document.getElementById('zonaTipo').value = 'Agujetas';
+  document.getElementById('overlay').classList.add('on');
+}
+document.getElementById('cancelarZona').addEventListener('click', () => document.getElementById('overlay').classList.remove('on'));
+document.getElementById('guardarZona').addEventListener('click', () => {
+  if(estado.scales.zonaIntensidad === undefined){ alert('Indica la intensidad.'); return; }
+  const z = estado.zonaActiva;
+  estado.dolores = estado.dolores.filter(d => !(d.zonaId===z.id && d.lado===z.lado));
+  estado.dolores.push({
+    zonaId: z.id, lado: z.lado, nombre: z.nombre,
+    intensidad: estado.scales.zonaIntensidad, tipo: document.getElementById('zonaTipo').value
+  });
+  delete estado.scales.zonaIntensidad;
+  document.getElementById('overlay').classList.remove('on');
+  pintarMapa(); pintarListaDolor();
+});
+function pintarListaDolor(){
+  const host = document.getElementById('listaDolor');
+  host.innerHTML='';
+  estado.dolores.forEach((d,i) => {
+    const chip = document.createElement('div'); chip.className='dolor-chip';
+    chip.innerHTML = `<span>${d.nombre}${d.lado?' ('+d.lado+')':''} · ${d.tipo} · ${d.intensidad}/10</span>`;
+    const rm = document.createElement('button'); rm.className='rm'; rm.textContent='✕';
+    rm.addEventListener('click', () => { estado.dolores.splice(i,1); pintarMapa(); pintarListaDolor(); });
+    chip.appendChild(rm);
+    host.appendChild(chip);
+  });
+  document.getElementById('btnDolor').style.display = estado.dolores.length ? 'block' : 'none';
+}
+document.getElementById('btnDolor').addEventListener('click', async () => {
+  const jug = jugadorActual(); if(!jug) return;
+  await enviar({
+    tipo:'dolor', jugador: jug, contexto: 'wellness',
+    zonas: estado.dolores.map(d => ({ zona: d.nombre, lado: d.lado, intensidad: d.intensidad, tipo_molestia: d.tipo }))
+  });
+  estado.dolores = []; pintarMapa(); pintarListaDolor();
+});
+</script>
+</body>
+</html>
