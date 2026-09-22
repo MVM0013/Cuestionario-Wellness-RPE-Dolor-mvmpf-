@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CD Zafranar · Panel de control</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+  :root{ --naranja:#EF6C1F; --negro:#141414; --negro2:#1E1E1E; --crema:#F4EFE8; --gris:#8A8A8A;
+    --ok:#3FA34D; --warn:#E0B400; --bad:#D64545; }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--negro);color:var(--crema);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;}
+  header{padding:18px 20px;border-bottom:3px solid var(--naranja);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
+  header h1{margin:0;font-size:1.3rem;}
+  .filtros{display:flex;gap:10px;flex-wrap:wrap;padding:14px 20px;background:var(--negro2);}
+  .filtros label{font-size:.75rem;color:var(--gris);display:block;margin-bottom:4px;}
+  .filtros select,.filtros input{padding:8px;border-radius:8px;border:1px solid #333;background:#111;color:var(--crema);}
+  main{padding:20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px;max-width:1300px;margin:0 auto;}
+  .card{background:var(--negro2);border-radius:14px;padding:16px;}
+  .card h2{margin:0 0 10px;font-size:1rem;color:var(--naranja);}
+  .full{grid-column:1/-1;}
+  table{width:100%;border-collapse:collapse;font-size:.85rem;}
+  th,td{text-align:left;padding:6px 8px;border-bottom:1px solid #2a2a2a;}
+  th{color:var(--gris);font-weight:600;}
+  .semaforo{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;}
+  .g{background:var(--ok);} .a{background:var(--warn);} .r{background:var(--bad);}
+  canvas{max-height:280px;}
+  .config{padding:16px 20px;color:var(--gris);font-size:.85rem;}
+  .config input{width:100%;padding:10px;border-radius:8px;border:1px solid #333;background:#111;color:var(--crema);margin-top:6px;}
+</style>
+</head>
+<body>
+<header>
+  <h1>CD Zafranar · Panel de control</h1>
+  <button id="btnActualizar" style="background:var(--naranja);border:none;padding:8px 14px;border-radius:8px;font-weight:700;cursor:pointer;">Actualizar datos</button>
+</header>
+
+<div class="config">
+  URL del Apps Script: <input type="text" id="apiUrl" placeholder="Pega aquí la URL de tu Apps Script" value="https://script.google.com/macros/s/AKfycbypxejWxZhsEjl8fpwvnJmdH2HbgBiuqQuxGZz3A1rnRM9Rgpc_2dQqlfrqbwZNzDa9eQ/exec">
+</div>
+
+<div class="filtros">
+  <div><label>Jugador</label><select id="fJugador"><option value="">Todos</option></select></div>
+  <div><label>Microciclo</label><select id="fMicro"><option value="">Todos</option></select></div>
+  <div><label>Desde</label><input type="date" id="fDesde"></div>
+  <div><label>Hasta</label><input type="date" id="fHasta"></div>
+</div>
+
+<main>
+  <div class="card full">
+    <h2>Semáforo por jugador (última wellness registrada)</h2>
+    <table id="tablaSemaforo"><thead><tr><th></th><th>Jugador</th><th>Sueño</th><th>Fatiga</th><th>Estrés</th><th>Ánimo</th><th>Fecha</th></tr></thead><tbody></tbody></table>
+  </div>
+
+  <div class="card"><h2>Carga por sesión (RPE × min)</h2><canvas id="chartCarga"></canvas></div>
+  <div class="card"><h2>Carga semanal acumulada</h2><canvas id="chartSemanal"></canvas></div>
+  <div class="card"><h2>Monotonía y strain (semanal)</h2><canvas id="chartMonotonia"></canvas></div>
+  <div class="card"><h2>Ratio agudo:crónico</h2><canvas id="chartACWR"></canvas></div>
+  <div class="card"><h2>Evolución del wellness (media diaria)</h2><canvas id="chartWellness"></canvas></div>
+  <div class="card"><h2>Zonas de dolor más reportadas</h2><canvas id="chartDolor"></canvas></div>
+
+  <div class="card full">
+    <h2>RPE medio por tarea (efecto condicional de cada tarea)</h2>
+    <table id="tablaTareas"><thead><tr><th>Tarea</th><th>Nº registros</th><th>Duración media</th><th>RPE medio</th></tr></thead><tbody></tbody></table>
+  </div>
+</main>
+
+<script>
+let DATA = { jugadores:[], wellness:[], rpeSesion:[], rpeTarea:[], dolor:[] };
+let charts = {};
+if (localStorage.getItem('zaf_api_url')) document.getElementById('apiUrl').value = localStorage.getItem('zaf_api_url');
+const guardadaURL = document.getElementById('apiUrl').value;
+
+async function cargar(){
+  const url = document.getElementById('apiUrl').value.trim();
+  if(!url){ alert('Pega la URL de tu Apps Script arriba.'); return; }
+  localStorage.setItem('zaf_api_url', url);
+  const r = await fetch(url);
+  DATA = await r.json();
+  poblarFiltros();
+  render();
+}
+document.getElementById('btnActualizar').addEventListener('click', cargar);
+['fJugador','fMicro','fDesde','fHasta'].forEach(id => document.getElementById(id).addEventListener('change', render));
+
+function poblarFiltros(){
+  const selJ = document.getElementById('fJugador');
+  selJ.innerHTML = '<option value="">Todos</option>' + [...new Set(DATA.jugadores.map(j=>j.nombre))].map(n=>`<option>${n}</option>`).join('');
+  const selM = document.getElementById('fMicro');
+  selM.innerHTML = '<option value="">Todos</option>' + [...new Set(DATA.rpeSesion.map(r=>r.microciclo).filter(Boolean))].map(n=>`<option>${n}</option>`).join('');
+}
+
+function filtrar(arr){
+  const j = document.getElementById('fJugador').value;
+  const m = document.getElementById('fMicro').value;
+  const desde = document.getElementById('fDesde').value;
+  const hasta = document.getElementById('fHasta').value;
+  return arr.filter(row => {
+    if (j && row.jugador !== j) return false;
+    if (m && row.microciclo && row.microciclo !== m) return false;
+    if (desde && row.fecha < desde) return false;
+    if (hasta && row.fecha > hasta) return false;
+    return true;
+  });
+}
+
+function agrupar(arr, key, val, agg){
+  const g = {};
+  arr.forEach(r => { (g[r[key]] ||= []).push(Number(r[val])); });
+  const out = {};
+  Object.keys(g).sort().forEach(k => out[k] = agg(g[k]));
+  return out;
+}
+const media = a => a.reduce((s,x)=>s+x,0)/a.length;
+const suma = a => a.reduce((s,x)=>s+x,0);
+const desv = a => { const m = media(a); return Math.sqrt(media(a.map(x=>(x-m)**2))); };
+
+function semanaISO(fecha){
+  const d = new Date(fecha); d.setHours(0,0,0,0);
+  d.setDate(d.getDate() + 3 - ((d.getDay()+6)%7));
+  const s = new Date(d.getFullYear(),0,4);
+  return d.getFullYear() + '-S' + (1 + Math.round(((d-s)/86400000 - 3 + ((s.getDay()+6)%7))/7));
+}
+
+function hacerChart(id, tipo, labels, datasets, opts={}){
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart(document.getElementById(id), {
+    type: tipo,
+    data: { labels, datasets },
+    options: Object.assign({ responsive:true, plugins:{legend:{labels:{color:'#F4EFE8'}}} ,
+      scales: tipo!=='pie' ? { x:{ticks:{color:'#8A8A8A'}}, y:{ticks:{color:'#8A8A8A'}} } : {} }, opts)
+  });
+}
+
+function render(){
+  const rSes = filtrar(DATA.rpeSesion);
+  const rTar = filtrar(DATA.rpeTarea);
+  const well = filtrar(DATA.wellness);
+  const dol = filtrar(DATA.dolor);
+
+  // Carga por sesión (últimos registros, por fecha)
+  const porFecha = {};
+  rSes.forEach(r => { (porFecha[r.fecha] ||= []).push(Number(r.carga)); });
+  const fechas = Object.keys(porFecha).sort();
+  hacerChart('chartCarga','bar', fechas, [{ label:'Carga media (RPE×min)', data: fechas.map(f=>media(porFecha[f])), backgroundColor:'#EF6C1F' }]);
+
+  // Carga semanal
+  const porSemana = {};
+  rSes.forEach(r => { const s = semanaISO(r.fecha); (porSemana[s] ||= []).push(Number(r.carga)); });
+  const semanas = Object.keys(porSemana).sort();
+  hacerChart('chartSemanal','line', semanas, [{ label:'Carga semanal total', data: semanas.map(s=>suma(porSemana[s])), borderColor:'#EF6C1F', backgroundColor:'rgba(239,108,31,.2)', fill:true, tension:.3 }]);
+
+  // Monotonía y strain: por semana, media/desv de la carga diaria
+  const monot = semanas.map(s => { const d = porSemana[s]; const m = media(d); const sd = desv(d)||0.01; return m/sd; });
+  const strain = semanas.map((s,i) => suma(porSemana[s]) * monot[i]);
+  hacerChart('chartMonotonia','bar', semanas, [
+    { label:'Monotonía', data: monot, backgroundColor:'#EF6C1F' },
+    { label:'Strain (÷100)', data: strain.map(v=>v/100), backgroundColor:'#8A8A8A' }
+  ]);
+
+  // ACWR aproximado: carga semanal aguda / media móvil 4 semanas
+  const acwr = semanas.map((s,i) => {
+    const agudo = suma(porSemana[s]);
+    const prev4 = semanas.slice(Math.max(0,i-3), i+1).map(k=>suma(porSemana[k]));
+    const cronico = media(prev4);
+    return cronico ? +(agudo/cronico).toFixed(2) : 0;
+  });
+  hacerChart('chartACWR','line', semanas, [{ label:'Ratio agudo:crónico', data: acwr, borderColor:'#3FA34D', backgroundColor:'rgba(63,163,77,.15)', fill:true, tension:.3 }]);
+
+  // Wellness medio diario (media de las 6 variables)
+  const wellPorFecha = {};
+  well.forEach(w => {
+    const vals = [w.sueno_calidad,w.fatiga,w.estres,w.dolor_muscular,w.animo,w.ganas_entrenar].map(Number);
+    (wellPorFecha[w.fecha] ||= []).push(media(vals));
+  });
+  const wf = Object.keys(wellPorFecha).sort();
+  hacerChart('chartWellness','line', wf, [{ label:'Wellness medio (1-7)', data: wf.map(f=>media(wellPorFecha[f])), borderColor:'#EF6C1F', backgroundColor:'rgba(239,108,31,.2)', fill:true, tension:.3 }]);
+
+  // Zonas de dolor
+  const porZona = {};
+  dol.forEach(d => { porZona[d.zona] = (porZona[d.zona]||0) + 1; });
+  const zonas = Object.keys(porZona).sort((a,b)=>porZona[b]-porZona[a]).slice(0,8);
+  hacerChart('chartDolor','bar', zonas, [{ label:'Nº de veces reportada', data: zonas.map(z=>porZona[z]), backgroundColor:'#D64545' }]);
+
+  // Semáforo
+  const ultimoPorJugador = {};
+  well.forEach(w => { if(!ultimoPorJugador[w.jugador] || w.fecha > ultimoPorJugador[w.jugador].fecha) ultimoPorJugador[w.jugador] = w; });
+  const tb = document.querySelector('#tablaSemaforo tbody'); tb.innerHTML='';
+  Object.values(ultimoPorJugador).forEach(w => {
+    const media3 = media([w.sueno_calidad,w.fatiga,w.estres,w.animo].map(Number).map((v,i)=> i===1||i===2 ? 8-v : v)); // invertir fatiga/estres
+    const clase = media3 >= 5.5 ? 'g' : media3 >= 4 ? 'a' : 'r';
+    tb.insertAdjacentHTML('beforeend', `<tr><td><span class="semaforo ${clase}"></span></td><td>${w.jugador}</td><td>${w.sueno_calidad}</td><td>${w.fatiga}</td><td>${w.estres}</td><td>${w.animo}</td><td>${w.fecha}</td></tr>`);
+  });
+
+  // Tareas
+  const porTarea = {};
+  rTar.forEach(t => { (porTarea[t.tarea] ||= []).push(t); });
+  const tt = document.querySelector('#tablaTareas tbody'); tt.innerHTML='';
+  Object.keys(porTarea).sort().forEach(nombre => {
+    const rows = porTarea[nombre];
+    const durMedia = media(rows.map(r=>Number(r.duracion_min)));
+    const rpeMedio = media(rows.map(r=>Number(r.rpe)));
+    tt.insertAdjacentHTML('beforeend', `<tr><td>${nombre}</td><td>${rows.length}</td><td>${durMedia.toFixed(0)} min</td><td>${rpeMedio.toFixed(1)}</td></tr>`);
+  });
+}
+
+if (guardadaURL) cargar();
+</script>
+</body>
+</html>
