@@ -430,7 +430,7 @@ filaTarea();
 function pintarFasesPartido(){
   const host = document.getElementById('tareasPartido');
   host.innerHTML = '';
-  ['Activación','1ª parte','2ª parte'].forEach(fase => {
+  ['Nivel de activación cuando has iniciado el partido','Recuperación de esfuerzos en la 1ª parte','Recuperación de esfuerzos en la 2ª parte','¿Cómo has llegado a la fase final del partido?','Capacidad para repetir esfuerzos a alta intensidad'].forEach(fase => {
     const row = document.createElement('div'); row.className='tarea-row';
     row.innerHTML = `<span style="flex:2;color:var(--crema);">${fase}</span>
       <select class="tp-rpe" data-fase="${fase}"><option value="">—</option>${Array.from({length:11},(_,i)=>`<option value="${i}">${i}</option>`).join('')}</select>`;
